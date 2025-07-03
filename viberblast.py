@@ -440,8 +440,8 @@ with st.container():
                                     lambda x: "BCCO" if x in bcco_dates else "BDCO" if x else ""
                                 )
 
-                                # Update {{agentcode}} to "PLAA" where {{ID}} is "BDCO"
-                                summary_df.loc[summary_df["{{ID}}"] == "BDCO", "{{agentcode}}"] = "PLAA"
+                                # Update {{agentcode}} to "PJHA" where {{ID}} is "BDCO"
+                                summary_df.loc[summary_df["{{ID}}"] == "BDCO", "{{agentcode}}"] = "PJHA"
 
                                 # Remove rows where {{agentcode}} is blank or null
                                 initial_row_count = len(summary_df)
