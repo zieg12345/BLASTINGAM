@@ -368,11 +368,11 @@ with st.container():
                     summary_df["{{OB}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     summary_df["{{MYP}}"] = pd.to_numeric(df["Statement Overdue Amount (MYP)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     summary_df["{{MAD}}"] = pd.to_numeric(df["Statement Minimum Payment (MAD)"], errors='coerce').apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
-                    summary_df["{{OB+CF}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce') * 1.2
+                    summary_df["{{OB+CF}}"] = pd.to_numeric(df["Statement Balance (OB)"], errors='coerce') * 1.11
                     summary_df["{{OB+CF}}"] = summary_df["{{OB+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
-                    summary_df["{{MAD+CF}}"] = pd.to_numeric(df["Statement Minimum Payment (MAD)"], errors='coerce') * 1.2
+                    summary_df["{{MAD+CF}}"] = pd.to_numeric(df["Statement Minimum Payment (MAD)"], errors='coerce') * 1.11
                     summary_df["{{MAD+CF}}"] = summary_df["{{MAD+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
-                    summary_df["{{MYP+CF}}"] = pd.to_numeric(df["Statement Overdue Amount (MYP)"], errors='coerce') * 1.2
+                    summary_df["{{MYP+CF}}"] = pd.to_numeric(df["Statement Overdue Amount (MYP)"], errors='coerce') * 1.11
                     summary_df["{{MYP+CF}}"] = summary_df["{{MYP+CF}}"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "")
                     
                     summary_df["Assignment Date"] = ""  # Initialize as blank
