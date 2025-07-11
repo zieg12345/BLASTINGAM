@@ -426,13 +426,12 @@ with st.container():
                                 summary_df["Assignment Date"] = summary_df["Assign Date"].fillna("")
                                 summary_df = summary_df.drop(columns=["Financing/Card No.", "Collector", "Assign Date"], errors='ignore')
 
-                                # Define date range for BCCO (last 3 days including today)
+                                # Define date range for BCCO (last 7 days including today)
                                 today = datetime.now().date()
-                                date_threshold = today - timedelta(days=2)  # 3 days including today
-                                date_threshold_str = date_threshold.strftime('%m/%d/%Y')
+                                date_threshold = today - timedelta(days=6)  # 7 days including today
                                 bcco_dates = [
                                     (today - timedelta(days=i)).strftime('%m/%d/%Y')
-                                    for i in range(3)
+                                    for i in range(7)
                                 ]
 
                                 # Assign {{ID}} based on Assignment Date
