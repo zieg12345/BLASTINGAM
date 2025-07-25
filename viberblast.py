@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
-import io
 from datetime import datetime, timedelta
 import random
+import openpyxl
+from openpyxl import Workbook
+from io import BytesIO
 
 # Initialize session state
 if 'button1_clicked' not in st.session_state:
@@ -302,6 +304,10 @@ with st.container():
                         "OB": [""] * len(df)
                     })
                     
+                    # Ensure text formatting for Mobile Number and CH Code
+                    summary_df["Mobile Number"] = summary_df["Mobile Number"].astype(str)
+                    summary_df["CH Code"] = summary_df["CH Code"].astype(str)
+                    
                     # Concatenate with sample data
                     summary_df = pd.concat([summary_df, sample_df], ignore_index=True)
                     
@@ -309,14 +315,34 @@ with st.container():
                     st.subheader("Summary Table")
                     st.dataframe(summary_df, use_container_width=True)
                     
-                    # Download button for summary table (CSV UTF-8 with BOM)
-                    csv_content = summary_df.to_csv(index=False)
-                    csv_with_bom = '\ufeff' + csv_content  # Add UTF-8 BOM
+                    # Create Excel file with openpyxl to preserve text formatting
+                    output = BytesIO()
+                    wb = Workbook()
+                    ws = wb.active
+                    ws.title = "Viber Blast"
+                    
+                    # Write headers
+                    headers = list(summary_df.columns)
+                    for col_num, header in enumerate(headers, 1):
+                        ws.cell(row=1, column=col_num).value = header
+                    
+                    # Write data and set text format for Mobile Number and CH Code
+                    for row_num, row in enumerate(summary_df.values, 2):
+                        for col_num, value in enumerate(row, 1):
+                            ws.cell(row=row_num, column=col_num).value = value
+                            if headers[col_num-1] in ["Mobile Number", "CH Code"]:
+                                ws.cell(row=row_num, column=col_num).number_format = '@'
+                    
+                    # Save to BytesIO
+                    wb.save(output)
+                    output.seek(0)
+                    
+                    # Download button for Excel file
                     st.download_button(
-                        label="📥 Download Summary Table as CSV",
-                        data=csv_with_bom.encode('utf-8'),
-                        file_name=f"{current_date}.csv",
-                        mime="text/csv",
+                        label="📥 Download Summary Table as Excel",
+                        data=output,
+                        file_name=f"{current_date}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key="download_summary"
                     )
                     
@@ -326,14 +352,26 @@ with st.container():
             # Display sample data if no file is uploaded
             st.subheader("Sample Summary Table")
             st.dataframe(sample_df, use_container_width=True)
-            # Download button for sample data (CSV UTF-8 with BOM)
-            csv_content = sample_df.to_csv(index=False)
-            csv_with_bom = '\ufeff' + csv_content  # Add UTF-8 BOM
+            # Download button for sample data (Excel)
+            output = BytesIO()
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Viber Blast"
+            headers = list(sample_df.columns)
+            for col_num, header in enumerate(headers, 1):
+                ws.cell(row=1, column=col_num).value = header
+            for row_num, row in enumerate(sample_df.values, 2):
+                for col_num, value in enumerate(row, 1):
+                    ws.cell(row=row_num, column=col_num).value = value
+                    if headers[col_num-1] in ["Mobile Number", "CH Code"]:
+                        ws.cell(row=row_num, column=col_num).number_format = '@'
+            wb.save(output)
+            output.seek(0)
             st.download_button(
                 label="📥 Download",
-                data=csv_with_bom.encode('utf-8'),
-                file_name=f"{current_date}.csv",
-                mime="text/csv",
+                data=output,
+                file_name=f"{current_date}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="download_sample"
             )
             st.info("Please upload a CSV file to generate the summary table with your data.")
@@ -344,7 +382,7 @@ with st.container():
         # Dropdown for selecting bucket
         bucket_option = st.selectbox(
             "Select Campaign",
-            ["Bucket 2 with sequence template", "Bucket 4 Generic Template"],
+            ["Bucket 2 with sequence template", "Bucket 4 Generic Template", "LEVEL 1 NEGATIVE ACCOUNTS", "LEVEL 6 NEGATIVE ACCOUNTS"],
             help="Choose the bucket for email blast processing"
         )
 
@@ -515,6 +553,16 @@ with st.container():
                         summary_df = summary_df.dropna(subset=columns_to_check)
                         summary_df = summary_df[~(summary_df[columns_to_check] == "").any(axis=1)]
 
+                        # Ensure text formatting for specific columns
+                        text_columns = ["Contract Number", "Email", "{{chname}}", "{{agentcode}}", "{{ID}}",
+                                        "Assignment Date", "TEMPLATE 1 D1", "TEMPLATE 1 D2", "TEMPLATE 2 D1",
+                                        "TEMPLATE 2 D2", "TEMPLATE 3 D1", "TEMPLATE 3 D2", "TEMPLATE 4 D1",
+                                        "TEMPLATE 4 D2", "TEMPLATE 5 D1", "TEMPLATE 5 D2", "TEMPLATE 6 D1",
+                                        "TEMPLATE 6 D2"]
+                        for col in text_columns:
+                            if col in summary_df.columns:
+                                summary_df[col] = summary_df[col].astype(str)
+
                         # Display the summary table
                         st.subheader("Summary Table")
                         if not summary_df.empty:
@@ -522,15 +570,27 @@ with st.container():
                             # Add spacing
                             st.markdown("<br>", unsafe_allow_html=True)
                             # Provide download option for Excel
-                            output = io.BytesIO()
-                            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                                summary_df.to_excel(writer, index=False, sheet_name='Summary')
-                            excel_data = output.getvalue()
+                            output = BytesIO()
+                            wb = Workbook()
+                            ws = wb.active
+                            ws.title = "Summary"
+                            # Write headers
+                            headers = list(summary_df.columns)
+                            for col_num, header in enumerate(headers, 1):
+                                ws.cell(row=1, column=col_num).value = header
+                            # Write data and set text format for specified columns
+                            for row_num, row in enumerate(summary_df.values, 2):
+                                for col_num, value in enumerate(row, 1):
+                                    ws.cell(row=row_num, column=col_num).value = value
+                                    if headers[col_num-1] in text_columns:
+                                        ws.cell(row=row_num, column=col_num).number_format = '@'
+                            wb.save(output)
+                            output.seek(0)
                             today = datetime.now().strftime("%B %d %Y")
                             file_name = f"B2 Email blasting {today}.xlsx"
                             st.download_button(
                                 label="📥 Download Summary Table as Excel Workbook",
-                                data=excel_data,
+                                data=output,
                                 file_name=file_name,
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 key="download_email_summary",
@@ -608,6 +668,12 @@ with st.container():
                         # Add {{ID}} column based on {{agentcode}}
                         df['{{ID}}'] = df['{{agentcode}}'].apply(lambda x: '4DCO' if x == 'PJHA' else '4CCO')
 
+                        # Ensure text formatting for all columns
+                        text_columns = ['Email', '{{chname}}', '{{product}}', '{{agentcode}}', '{{ID}}', 'Financing/Card No.', 'Account No.']
+                        for col in text_columns:
+                            if col in df.columns:
+                                df[col] = df[col].astype(str)
+
                         # Display the filtered and renamed dataframe
                         st.write("### Processed Data")
                         st.dataframe(df, use_container_width=True)
@@ -641,18 +707,248 @@ with st.container():
                         st.write(f"- **Assign Date Range**: {date_range}")
 
                         # Download button for the processed file
-                        output = io.BytesIO()
-                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                            df.to_excel(writer, index=False, sheet_name='Summary')
-                        excel_data = output.getvalue()
+                        output = BytesIO()
+                        wb = Workbook()
+                        ws = wb.active
+                        ws.title = "Summary"
+                        # Write headers
+                        headers = list(df.columns)
+                        for col_num, header in enumerate(headers, 1):
+                            ws.cell(row=1, column=col_num).value = header
+                        # Write data and set text format for specified columns
+                        for row_num, row in enumerate(df.values, 2):
+                            for col_num, value in enumerate(row, 1):
+                                ws.cell(row=row_num, column=col_num).value = value
+                                if headers[col_num-1] in text_columns:
+                                    ws.cell(row=row_num, column=col_num).number_format = '@'
+                        wb.save(output)
+                        output.seek(0)
                         today = datetime.now().strftime("%B %d %Y")
                         file_name = f"B4 Email blasting {today}.xlsx"
                         st.download_button(
                             label="📥 Download Processed Excel",
-                            data=excel_data,
+                            data=output,
                             file_name=file_name,
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key="download_bucket4_summary",
+                            use_container_width=True
+                        )
+                except Exception as e:
+                    st.error(f"An error occurred while processing the file: {str(e)}")
+            else:
+                st.info("Please upload an Excel file to generate the summary table.")
+        elif bucket_option == "LEVEL 1 NEGATIVE ACCOUNTS":
+            # LEVEL 1 NEGATIVE ACCOUNTS functionality
+            st.subheader("LEVEL 1 NEGATIVE ACCOUNTS Email Blast File Uploader")
+            
+            # File uploader
+            uploaded_file = st.file_uploader(
+                "📤 Choose an Excel file",
+                type=["xlsx"],
+                key="level1_uploader",
+                help="Upload an Excel (.xlsx) file with columns: Email, Name, Product Type, Client Name, Account No., Financing/Card No. Values in Account No. and Financing/Card No. are preserved exactly as uploaded (e.g., 5181789020226880.0 remains unchanged)."
+            )
+            if uploaded_file is not None:
+                st.session_state.uploaded_file = uploaded_file
+                st.success("File uploaded successfully!")
+
+            # Reset button
+            if st.session_state.uploaded_file is not None:
+                if st.button("🔄 Reset", help="Clear the uploaded file and reset"):
+                    st.session_state.uploaded_file = None
+                    st.rerun()
+
+            if st.session_state.uploaded_file is not None:
+                try:
+                    # Read the Excel file
+                    df = pd.read_excel(st.session_state.uploaded_file, engine='openpyxl')
+
+                    # Define the columns to keep
+                    required_columns = ['Email', 'Name', 'Product Type', 'Client Name', 'Account No.', 'Financing/Card No.']
+                    available_columns = [col for col in required_columns if col in df.columns]
+                    
+                    # Check for missing required columns
+                    missing_columns = [col for col in required_columns if col not in df.columns]
+                    if missing_columns:
+                        st.error(f"Missing columns in the uploaded file: {', '.join(missing_columns)}")
+                    else:
+                        # Keep only the specified columns
+                        df = df[required_columns]
+
+                        # Create the summary table
+                        summary_df = pd.DataFrame({
+                            'Email': df['Email'],
+                            '{{chname}}': df['Name'],
+                            '{{product}}': df['Product Type'],
+                            '{{agentcode}}': 'PJND',
+                            'Client Name': df['Client Name'],
+                            'Account No.': df['Account No.'],
+                            'Financing/Card No.': df['Financing/Card No.']
+                        })
+
+                        # Ensure text formatting for all columns
+                        text_columns = ['Email', '{{chname}}', '{{product}}', '{{agentcode}}', 'Client Name', 'Account No.', 'Financing/Card No.']
+                        for col in text_columns:
+                            summary_df[col] = summary_df[col].astype(str)
+
+                        # Display the processed dataframe
+                        st.write("### Processed Data")
+                        st.dataframe(summary_df, use_container_width=True)
+
+                        # Generate summary
+                        st.write("### Summary")
+                        st.write("Note: Values in Account No. and Financing/Card No. are preserved exactly as uploaded (e.g., 5181789020226880.0 remains unchanged).")
+                        total_records = len(summary_df)
+                        unique_emails = summary_df['Email'].nunique()
+                        unique_names = summary_df['{{chname}}'].nunique()
+                        unique_products = summary_df['{{product}}'].nunique()
+                        unique_agents = summary_df['{{agentcode}}'].nunique()
+                        unique_clients = summary_df['Client Name'].nunique()
+                        unique_accounts = summary_df['Account No.'].nunique()
+                        unique_financing = summary_df['Financing/Card No.'].nunique()
+                        
+                        st.write(f"- **Total Records**: {total_records}")
+                        st.write(f"- **Unique Emails**: {unique_emails}")
+                        st.write(f"- **Unique Names ({{chname}})**: {unique_names}")
+                        st.write(f"- **Unique Products ({{product}})**: {unique_products}")
+                        st.write(f"- **Unique Agents ({{agentcode}})**: {unique_agents}")
+                        st.write(f"- **Unique Client Names**: {unique_clients}")
+                        st.write(f"- **Unique Account Numbers**: {unique_accounts}")
+                        st.write(f"- **Unique Financing/Card Numbers**: {unique_financing}")
+
+                        # Download button for the processed file
+                        output = BytesIO()
+                        wb = Workbook()
+                        ws = wb.active
+                        ws.title = "Summary"
+                        # Write headers
+                        headers = list(summary_df.columns)
+                        for col_num, header in enumerate(headers, 1):
+                            ws.cell(row=1, column=col_num).value = header
+                        # Write data and set text format for all columns
+                        for row_num, row in enumerate(summary_df.values, 2):
+                            for col_num, value in enumerate(row, 1):
+                                ws.cell(row=row_num, column=col_num).value = value
+                                ws.cell(row=row_num, column=col_num).number_format = '@'
+                        wb.save(output)
+                        output.seek(0)
+                        today = datetime.now().strftime("%B %d %Y")
+                        file_name = f"Level 1 Negative Accounts Email blasting {today}.xlsx"
+                        st.download_button(
+                            label="📥 Download Processed Excel",
+                            data=output,
+                            file_name=file_name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="download_level1_summary",
+                            use_container_width=True
+                        )
+                except Exception as e:
+                    st.error(f"An error occurred while processing the file: {str(e)}")
+            else:
+                st.info("Please upload an Excel file to generate the summary table.")
+        elif bucket_option == "LEVEL 6 NEGATIVE ACCOUNTS":
+            # LEVEL 6 NEGATIVE ACCOUNTS functionality
+            st.subheader("LEVEL 6 NEGATIVE ACCOUNTS Email Blast File Uploader")
+            
+            # File uploader
+            uploaded_file = st.file_uploader(
+                "📤 Choose an Excel file",
+                type=["xlsx"],
+                key="level6_uploader",
+                help="Upload an Excel (.xlsx) file with columns: Email, Name, Product Type, Client Name, Account No., Financing/Card No. Values in Account No. and Financing/Card No. are preserved exactly as uploaded (e.g., 5181789020226880.0 remains unchanged)."
+            )
+            if uploaded_file is not None:
+                st.session_state.uploaded_file = uploaded_file
+                st.success("File uploaded successfully!")
+
+            # Reset button
+            if st.session_state.uploaded_file is not None:
+                if st.button("🔄 Reset", help="Clear the uploaded file and reset"):
+                    st.session_state.uploaded_file = None
+                    st.rerun()
+
+            if st.session_state.uploaded_file is not None:
+                try:
+                    # Read the Excel file
+                    df = pd.read_excel(st.session_state.uploaded_file, engine='openpyxl')
+
+                    # Define the columns to keep
+                    required_columns = ['Email', 'Name', 'Product Type', 'Client Name', 'Account No.', 'Financing/Card No.']
+                    available_columns = [col for col in required_columns if col in df.columns]
+                    
+                    # Check for missing required columns
+                    missing_columns = [col for col in required_columns if col in df.columns]
+                    if missing_columns:
+                        st.error(f"Missing columns in the uploaded file: {', '.join(missing_columns)}")
+                    else:
+                        # Keep only the specified columns
+                        df = df[required_columns]
+
+                        # Create the summary table
+                        summary_df = pd.DataFrame({
+                            'Email': df['Email'],
+                            '{{chname}}': df['Name'],
+                            '{{product}}': df['Product Type'],
+                            '{{agentcode}}': 'PJND6',
+                            'Client Name': df['Client Name'],
+                            'Account No.': df['Account No.'],
+                            'Financing/Card No.': df['Financing/Card No.']
+                        })
+
+                        # Ensure text formatting for all columns
+                        text_columns = ['Email', '{{chname}}', '{{product}}', '{{agentcode}}', 'Client Name', 'Account No.', 'Financing/Card No.']
+                        for col in text_columns:
+                            summary_df[col] = summary_df[col].astype(str)
+
+                        # Display the processed dataframe
+                        st.write("### Processed Data")
+                        st.dataframe(summary_df, use_container_width=True)
+
+                        # Generate summary
+                        st.write("### Summary")
+                        st.write("Note: Values in Account No. and Financing/Card No. are preserved exactly as uploaded (e.g., 5181789020226880.0 remains unchanged).")
+                        total_records = len(summary_df)
+                        unique_emails = summary_df['Email'].nunique()
+                        unique_names = summary_df['{{chname}}'].nunique()
+                        unique_products = summary_df['{{product}}'].nunique()
+                        unique_agents = summary_df['{{agentcode}}'].nunique()
+                        unique_clients = summary_df['Client Name'].nunique()
+                        unique_accounts = summary_df['Account No.'].nunique()
+                        unique_financing = summary_df['Financing/Card No.'].nunique()
+                        
+                        st.write(f"- **Total Records**: {total_records}")
+                        st.write(f"- **Unique Emails**: {unique_emails}")
+                        st.write(f"- **Unique Names ({{chname}})**: {unique_names}")
+                        st.write(f"- **Unique Products ({{product}})**: {unique_products}")
+                        st.write(f"- **Unique Agents ({{agentcode}})**: {unique_agents}")
+                        st.write(f"- **Unique Client Names**: {unique_clients}")
+                        st.write(f"- **Unique Account Numbers**: {unique_accounts}")
+                        st.write(f"- **Unique Financing/Card Numbers**: {unique_financing}")
+
+                        # Download button for the processed file
+                        output = BytesIO()
+                        wb = Workbook()
+                        ws = wb.active
+                        ws.title = "Summary"
+                        # Write headers
+                        headers = list(summary_df.columns)
+                        for col_num, header in enumerate(headers, 1):
+                            ws.cell(row=1, column=col_num).value = header
+                        # Write data and set text format for all columns
+                        for row_num, row in enumerate(summary_df.values, 2):
+                            for col_num, value in enumerate(row, 1):
+                                ws.cell(row=row_num, column=col_num).value = value
+                                ws.cell(row=row_num, column=col_num).number_format = '@'
+                        wb.save(output)
+                        output.seek(0)
+                        today = datetime.now().strftime("%B %d %Y")
+                        file_name = f"Level 6 Negative Accounts Email blasting {today}.xlsx"
+                        st.download_button(
+                            label="📥 Download Processed Excel",
+                            data=output,
+                            file_name=file_name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="download_level6_summary",
                             use_container_width=True
                         )
                 except Exception as e:
@@ -678,4 +974,4 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Footer
-st.markdown('<div class="footer">Viber Blast Uploader | Version 1.0 | May 27, 2025 05:20 PM PST</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="footer">Viber Blast Uploader | Version 1.0 | Jul 21, 2025 11:36 AM PST</div>', unsafe_allow_html=True)
